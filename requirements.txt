@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+openai
+alpha_vantage
+python-dotenv
