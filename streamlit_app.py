@@ -111,7 +111,7 @@ def generate_report():
 st.set_page_config(layout="centered")  # Set layout to centered
 
 # Display the logo
-logo_path = "/mnt/data/dtb-logo.jpg"
+logo_path = "assets/dtb-logo.jpg"
 st.image(logo_path, use_column_width=True)
 
 st.title("Daily Trading Briefing")
