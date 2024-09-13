@@ -28,7 +28,7 @@ def fetch_nasdaq_data(api_key, secret_key):
 def analyze_chart_with_gpt4(data):
     data_str = data.to_string(index=False)
     
-    response = openai.Chat.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
@@ -36,7 +36,7 @@ def analyze_chart_with_gpt4(data):
         ]
     )
     
-    analysis = response.choices[0].message['content']
+    analysis = response['choices'][0]['message']['content']
     
     support_levels = []
     resistance_levels = []
@@ -48,7 +48,6 @@ def analyze_chart_with_gpt4(data):
             resistance_levels = [float(x) for x in line.split(":")[1].split(",")]
     
     return support_levels, resistance_levels
-
 
 # Function to create a candlestick chart with support/resistance zones
 def create_candlestick_chart_with_analysis(df):
@@ -110,6 +109,8 @@ def generate_report():
     {investment_analysis}
     """
     report_file = f'reports/nasdaq_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.md'
+    if not os.path.exists('reports'):
+        os.makedirs('reports')
     with open(report_file, 'w') as f:
         f.write(report_content)
     
@@ -120,7 +121,7 @@ st.set_page_config(layout="centered")  # Set layout to centered
 
 # Display the logo
 logo_path = "assets/dtb-logo.jpg"
-st.image(logo_path, use_column_width=True)
+st.image(logo_path, width=256)
 
 st.title("Daily Trading Briefing")
 
@@ -128,8 +129,6 @@ if st.button("Generate Briefing for Today"):
     generate_report()
 
 st.write("### Available Reports")
-if not os.path.exists('reports'):
-    os.makedirs('reports')
 reports = os.listdir('reports')
 selected_report = st.selectbox("Select a report", reports)
 
