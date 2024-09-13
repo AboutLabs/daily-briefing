@@ -37,9 +37,8 @@ def fetch_nasdaq_data(api_key, secret_key):
     
     return bars
 
-
 # Function to create a larger candlestick chart with smaller candles and volume
-def create_candlestick_chart(df):
+def create_candlestick_chart(df, filename):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
                                          open=df['Open'],
                                          high=df['High'],
@@ -56,7 +55,7 @@ def create_candlestick_chart(df):
                       width=1200, height=800)  # Set the size of the chart
 
     # Save the chart as an image
-    fig.write_image("candlestick_chart.png")
+    fig.write_image(filename)
 
     return fig
 
@@ -66,7 +65,10 @@ def generate_report():
     
     df = fetch_nasdaq_data(alpaca_api_key, alpaca_secret_key)
     
-    fig = create_candlestick_chart(df)
+    report_file_base = f'reports/nasdaq_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
+    image_filename = f"{report_file_base}.png"
+    
+    fig = create_candlestick_chart(df, image_filename)
     st.plotly_chart(fig, use_container_width=True)
     
     st.write("#### News Summary")
@@ -85,7 +87,7 @@ def generate_report():
     # NASDAQ Daily Briefing Report
     
     ## Candlestick Chart
-    ![Candlestick Chart](candlestick_chart.png)
+    ![Candlestick Chart]({os.path.basename(image_filename)})
     
     ## News Summary
     {news_summary}
@@ -96,7 +98,7 @@ def generate_report():
     ## Analytical Report 2
     {investment_analysis}
     """
-    report_file = f'reports/nasdaq_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.md'
+    report_file = f'{report_file_base}.md'
     if not os.path.exists('reports'):
         os.makedirs('reports')
     with open(report_file, 'w') as f:
