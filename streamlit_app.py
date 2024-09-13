@@ -13,19 +13,16 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 # Function to fetch NASDAQ data from Alpaca
 def fetch_nasdaq_data(api_key, secret_key):
     api = tradeapi.REST(api_key, secret_key, base_url='https://paper-api.alpaca.markets')
-    barset = api.get_barset('QQQ', 'hour', limit=100)  # QQQ is a common ETF that tracks NASDAQ
-    bars = barset['QQQ']
-
-    # Convert to DataFrame
-    data = pd.DataFrame({
-        'Date': [bar.t for bar in bars],
-        'Open': [bar.o for bar in bars],
-        'High': [bar.h for bar in bars],
-        'Low': [bar.l for bar in bars],
-        'Close': [bar.c for bar in bars],
-        'Volume': [bar.v for bar in bars]
-    })
-    return data
+    
+    # Fetch the data for the QQQ ETF (which tracks NASDAQ)
+    bars = api.get_bars('QQQ', tradeapi.TimeFrame.Hour, limit=100).df
+    
+    # Reset the index and return the required columns
+    bars = bars.reset_index()
+    bars = bars[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
+    bars.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+    
+    return bars
 
 # Function to analyze data with GPT-4
 def analyze_chart_with_gpt4(data):
