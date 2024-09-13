@@ -2,19 +2,29 @@ import openai
 import pandas as pd
 import plotly.graph_objs as go
 import streamlit as st
-from alpha_vantage.timeseries import TimeSeries
+import alpaca_trade_api as tradeapi
 import os
 
 # Retrieve the API keys from Streamlit secrets
-alpha_vantage_api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
+alpaca_api_key = st.secrets["ALPACA_API_KEY"]
+alpaca_secret_key = st.secrets["ALPACA_SECRET_KEY"]
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Function to fetch NASDAQ data from Alpha Vantage
-def fetch_nasdaq_data(api_key):
-    ts = TimeSeries(key=api_key, output_format='pandas')
-    data, meta_data = ts.get_intraday(symbol='NASDAQ:IXIC', interval='60min', outputsize='full')
-    data.reset_index(inplace=True)
-    data.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+# Function to fetch NASDAQ data from Alpaca
+def fetch_nasdaq_data(api_key, secret_key):
+    api = tradeapi.REST(api_key, secret_key, base_url='https://paper-api.alpaca.markets')
+    barset = api.get_barset('QQQ', 'hour', limit=100)  # QQQ is a common ETF that tracks NASDAQ
+    bars = barset['QQQ']
+
+    # Convert to DataFrame
+    data = pd.DataFrame({
+        'Date': [bar.t for bar in bars],
+        'Open': [bar.o for bar in bars],
+        'High': [bar.h for bar in bars],
+        'Low': [bar.l for bar in bars],
+        'Close': [bar.c for bar in bars],
+        'Volume': [bar.v for bar in bars]
+    })
     return data
 
 # Function to analyze data with GPT-4
@@ -69,7 +79,7 @@ def create_candlestick_chart_with_analysis(df):
 def generate_report():
     st.write("### NASDAQ Daily Briefing Report")
     
-    df = fetch_nasdaq_data(alpha_vantage_api_key)
+    df = fetch_nasdaq_data(alpaca_api_key, alpaca_secret_key)
     
     fig = create_candlestick_chart_with_analysis(df)
     st.plotly_chart(fig, use_container_width=True)

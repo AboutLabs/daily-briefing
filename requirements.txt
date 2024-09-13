@@ -1,6 +1,5 @@
 streamlit
+openai
 pandas
 plotly
-openai
-alpha_vantage
-python-dotenv
+alpaca-trade-api
