@@ -1,97 +1,86 @@
-from openai import OpenAI
-
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+import openai
 import pandas as pd
 import plotly.graph_objs as go
 import streamlit as st
 import alpaca_trade_api as tradeapi
 import os
+from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
 
 # Retrieve the API keys from Streamlit secrets
 alpaca_api_key = st.secrets["ALPACA_API_KEY"]
 alpaca_secret_key = st.secrets["ALPACA_SECRET_KEY"]
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Function to fetch NASDAQ data from Alpaca
 def fetch_nasdaq_data(api_key, secret_key):
     api = tradeapi.REST(api_key, secret_key, base_url='https://paper-api.alpaca.markets')
-
-    # Fetch the data for the QQQ ETF (which tracks NASDAQ)
-    bars = api.get_bars('QQQ', tradeapi.TimeFrame.Hour, limit=100).df
-
+    
+    # Fetch the data for the QQQ ETF (which tracks NASDAQ) for the last week
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=7)
+    
+    # Format dates correctly for the API
+    start_date_str = start_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    end_date_str = end_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    
+    # Get bars data with IEX feed (Free Tier)
+    bars = api.get_bars('QQQ', tradeapi.TimeFrame.Hour, 
+                        start=start_date_str, 
+                        end=end_date_str, 
+                        feed='iex').df
+    
     # Reset the index and return the required columns
     bars = bars.reset_index()
     bars = bars[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
     bars.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
-
+    
     return bars
 
-# Function to analyze data with GPT-4
-def analyze_chart_with_gpt4(data):
-    data_str = data.to_string(index=False)
 
-    response = client.chat.completions.create(model="gpt-4",
-    messages=[
-        {"role": "system", "content": "You are a financial analyst."},
-        {"role": "user", "content": f"Analyze the following NASDAQ data and identify support and resistance levels. Provide the support and resistance levels as numerical values. Data:\n{data_str}"}
-    ])
-
-    analysis = response.choices[0].message.content
-
-    support_levels = []
-    resistance_levels = []
-
-    for line in analysis.splitlines():
-        if "Support levels" in line:
-            support_levels = [float(x) for x in line.split(":")[1].split(",")]
-        elif "Resistance levels" in line:
-            resistance_levels = [float(x) for x in line.split(":")[1].split(",")]
-
-    return support_levels, resistance_levels
-
-# Function to create a candlestick chart with support/resistance zones
-def create_candlestick_chart_with_analysis(df):
+# Function to create a larger candlestick chart with smaller candles and volume
+def create_candlestick_chart(df):
     fig = go.Figure(data=[go.Candlestick(x=df['Date'],
                                          open=df['Open'],
                                          high=df['High'],
                                          low=df['Low'],
-                                         close=df['Close'])])
+                                         close=df['Close'],
+                                         increasing_line_width=0.5, decreasing_line_width=0.5),
+                          go.Bar(x=df['Date'], y=df['Volume'], name='Volume', marker_color='blue', yaxis='y2', opacity=0.3)])
 
-    support_levels, resistance_levels = analyze_chart_with_gpt4(df[['Date', 'Open', 'High', 'Low', 'Close']])
-
-    for level in support_levels:
-        fig.add_hline(y=level, line=dict(color='green', dash='dash'), annotation_text='Support', annotation_position="bottom right")
-
-    for level in resistance_levels:
-        fig.add_hline(y=level, line=dict(color='red', dash='dash'), annotation_text='Resistance', annotation_position="top right")
-
-    fig.update_layout(title='NASDAQ 1h Candlestick Chart with Support/Resistance',
+    fig.update_layout(title='NASDAQ 1h Candlestick Chart with Volume',
                       yaxis_title='Price',
                       xaxis_title='Date',
-                      xaxis_rangeslider_visible=False)
+                      xaxis_rangeslider_visible=False,
+                      yaxis2=dict(title='Volume', overlaying='y', side='right', showgrid=False),
+                      width=1200, height=800)  # Set the size of the chart
+
+    # Save the chart as an image
+    fig.write_image("candlestick_chart.png")
 
     return fig
 
 # Function to generate the report
 def generate_report():
     st.write("### NASDAQ Daily Briefing Report")
-
+    
     df = fetch_nasdaq_data(alpaca_api_key, alpaca_secret_key)
-
-    fig = create_candlestick_chart_with_analysis(df)
+    
+    fig = create_candlestick_chart(df)
     st.plotly_chart(fig, use_container_width=True)
-
+    
     st.write("#### News Summary")
     news_summary = "This is a placeholder for news summary. Integrate actual news summary here."
     st.write(news_summary)
-
+    
     st.write("#### Analytical Report 1")
     stock_analysis = "This is a placeholder for stock analysis. Integrate actual analysis here."
     st.write(stock_analysis)
-
+    
     st.write("#### Analytical Report 2")
     investment_analysis = "This is a placeholder for investment analysis. Integrate actual analysis here."
     st.write(investment_analysis)
-
+    
     report_content = f"""
     # NASDAQ Daily Briefing Report
     
@@ -112,7 +101,7 @@ def generate_report():
         os.makedirs('reports')
     with open(report_file, 'w') as f:
         f.write(report_content)
-
+    
     st.success("Report generated and saved successfully!")
 
 # Streamlit UI
