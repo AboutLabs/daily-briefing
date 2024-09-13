@@ -28,7 +28,7 @@ def fetch_nasdaq_data(api_key, secret_key):
 def analyze_chart_with_gpt4(data):
     data_str = data.to_string(index=False)
     
-    response = openai.ChatCompletion.create(
+    response = openai.Chat.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a financial analyst."},
@@ -36,7 +36,7 @@ def analyze_chart_with_gpt4(data):
         ]
     )
     
-    analysis = response['choices'][0]['message']['content']
+    analysis = response.choices[0].message['content']
     
     support_levels = []
     resistance_levels = []
@@ -48,6 +48,7 @@ def analyze_chart_with_gpt4(data):
             resistance_levels = [float(x) for x in line.split(":")[1].split(",")]
     
     return support_levels, resistance_levels
+
 
 # Function to create a candlestick chart with support/resistance zones
 def create_candlestick_chart_with_analysis(df):
