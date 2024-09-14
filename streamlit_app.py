@@ -1,15 +1,20 @@
-import openai
+import os
 import pandas as pd
 import plotly.graph_objs as go
 import plotly.subplots as sp
 import streamlit as st
 import alpaca_trade_api as tradeapi
-import os
+import openai
 from datetime import datetime, timedelta
 
-# Helper function to get environment variables or Streamlit secrets
+# Helper function to get Streamlit secrets
 def get_secret(key):
-    return os.getenv(key) or st.secrets.get(key)
+    # Attempt to get the secret from Streamlit secrets
+    if hasattr(st, 'secrets') and key in st.secrets:
+        return st.secrets[key]
+    
+    # If the secret is not found, raise an error
+    raise ValueError(f"Secret '{key}' not found in Streamlit secrets!")
 
 # Retrieve the API keys using the helper function
 alpaca_api_key = get_secret("ALPACA_API_KEY")
@@ -80,7 +85,6 @@ def create_candlestick_chart(df, filename):
     # Remove fixed y-axis range to allow auto-scaling based on data
     fig.update_layout(title='NASDAQ 1h Candlestick Chart with Volume',
                       yaxis_title='Price',
-                      # yaxis=dict(range=[min_price - buffer, max_price + buffer]),  # Optional: Add buffer if needed
                       xaxis_title='Date',
                       xaxis_rangeslider_visible=False,
                       width=1200, height=800)  # Set the size of the chart
