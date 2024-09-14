@@ -1,38 +1,22 @@
 import openai
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objs as go
+import plotly.subplots as sp
 import streamlit as st
 import alpaca_trade_api as tradeapi
 import os
 from datetime import datetime, timedelta
-
-# Set the page configuration first
-st.set_page_config(layout="wide")  # Set layout to wide
-
-# Custom CSS to set the width of the main column
-st.markdown(
-    """
-    <style>
-    .main {
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
 # Retrieve the API keys from Streamlit secrets
 alpaca_api_key = st.secrets["ALPACA_API_KEY"]
 alpaca_secret_key = st.secrets["ALPACA_SECRET_KEY"]
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Function to fetch NASDAQ data from Alpaca
+# Function to fetch QQQ data from Alpaca
 def fetch_nasdaq_data(api_key, secret_key):
     api = tradeapi.REST(api_key, secret_key, base_url='https://paper-api.alpaca.markets')
     
-    # Fetch the data for the QQQ ETF (which tracks NASDAQ) for the last week
+    # Fetch the data for the QQQ ETF (which tracks Nasdaq) for the last week
     end_date = datetime.now()
     start_date = end_date - timedelta(days=7)
     
@@ -41,7 +25,7 @@ def fetch_nasdaq_data(api_key, secret_key):
     end_date_str = end_date.strftime('%Y-%m-%dT%H:%M:%SZ')
     
     # Get bars data with IEX feed (Free Tier)
-    bars = api.get_bars('QQQ', tradeapi.TimeFrame.Hour, 
+    bars = api.get_bars('QQQ', tradeapi.TimeFrame(15, tradeapi.TimeFrameUnit.Minute), 
                         start=start_date_str, 
                         end=end_date_str, 
                         feed='iex').df
@@ -53,26 +37,41 @@ def fetch_nasdaq_data(api_key, secret_key):
     
     return bars
 
-# Function to create a candlestick chart with Plotly Express
+# Function to create a candlestick chart with volume in a subchart
 def create_candlestick_chart(df, filename):
-    # Create a candlestick chart using Plotly Express
-    fig = go.Figure(data=[go.Candlestick(x=df['Date'],
-                                         open=df['Open'],
-                                         high=df['High'],
-                                         low=df['Low'],
-                                         close=df['Close'])])
+    # Create a subplot with 2 rows, sharing the x-axis
+    fig = sp.make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                           row_heights=[0.7, 0.3], vertical_spacing=0.05,
+                           subplot_titles=("Candlestick Chart", "Volume"))
 
-    # Add volume as a bar chart on the secondary y-axis
-    fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], name='Volume', marker_color='blue', yaxis='y2', opacity=0.3))
+    # Create the candlestick chart in the first row
+    fig.add_trace(go.Candlestick(
+        x=df['Date'],
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
+        name='QQQ'
+    ), row=1, col=1)
 
-    # Update layout for better visualization
+    # Create the volume bar chart in the second row
+    fig.add_trace(go.Bar(
+        x=df['Date'], 
+        y=df['Volume'], 
+        name='Volume', 
+        marker_color='blue',
+        opacity=0.5
+    ), row=2, col=1)
+
+    # Layout configuration
     fig.update_layout(
-        title='NASDAQ 1h Candlestick Chart with Volume',
-        yaxis_title='Price',
+        title='QQQ 1h Candlestick Chart with Volume',
         xaxis_title='Date',
+        yaxis_title='Price',
         xaxis_rangeslider_visible=False,
-        yaxis2=dict(title='Volume', overlaying='y', side='right', showgrid=False),
-        width=1200, height=800  # Set the size of the chart
+        width=1200, 
+        height=800,
+        legend_title_text='Legend'
     )
 
     # Save the chart as an image
@@ -82,7 +81,7 @@ def create_candlestick_chart(df, filename):
 
 # Function to generate the report
 def generate_report():
-    st.write("### NASDAQ Daily Briefing Report")
+    st.write("### QQQ Daily Briefing Report")
     
     df = fetch_nasdaq_data(alpaca_api_key, alpaca_secret_key)
     
@@ -105,7 +104,7 @@ def generate_report():
     st.write(investment_analysis)
     
     report_content = f"""
-    # NASDAQ Daily Briefing Report
+    # QQQ Daily Briefing Report
     
     ## Candlestick Chart
     ![Candlestick Chart]({os.path.basename(image_filename)})
@@ -128,6 +127,21 @@ def generate_report():
     st.success("Report generated and saved successfully!")
 
 # Streamlit UI
+st.set_page_config(layout="wide")  # Set layout to wide for maximum use of space
+
+# Apply custom CSS to control the main column width
+st.markdown(
+    """
+    <style>
+    .main {
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Display the logo
 logo_path = "assets/dtb-logo.jpg"

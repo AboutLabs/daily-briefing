@@ -1,6 +1,7 @@
+openai
 pandas
 plotly
-matplotlib
-openai
 streamlit
+matplotlib
+kaleido
 alpaca-trade-api
