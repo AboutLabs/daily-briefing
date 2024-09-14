@@ -1,11 +1,11 @@
 import openai
 import pandas as pd
 import plotly.graph_objs as go
+import plotly.subplots as sp
 import streamlit as st
 import alpaca_trade_api as tradeapi
 import os
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 
 # Retrieve the API keys from Streamlit secrets
 alpaca_api_key = st.secrets["ALPACA_API_KEY"]
@@ -37,21 +37,48 @@ def fetch_nasdaq_data(api_key, secret_key):
     
     return bars
 
-# Function to create a larger candlestick chart with smaller candles and volume
+# Function to create a candlestick chart with volume in a separate row
 def create_candlestick_chart(df, filename):
-    fig = go.Figure(data=[go.Candlestick(x=df['Date'],
-                                         open=df['Open'],
-                                         high=df['High'],
-                                         low=df['Low'],
-                                         close=df['Close'],
-                                         increasing_line_width=0.5, decreasing_line_width=0.5),
-                          go.Bar(x=df['Date'], y=df['Volume'], name='Volume', marker_color='blue', yaxis='y2', opacity=0.3)])
+    # Debug: Print min and max values of the Close prices
+    min_price = df['Close'].min()
+    max_price = df['Close'].max()
+    print(f"Min Price: {min_price}")
+    print(f"Max Price: {max_price}")
 
+    # Create subplots with 2 rows, one for candlestick and one for volume
+    fig = sp.make_subplots(rows=2, cols=1, shared_xaxes=True,
+                           vertical_spacing=0.03, 
+                           row_heights=[0.7, 0.3])  # Adjust row heights
+
+    # Candlestick chart in the first row
+    fig.add_trace(go.Candlestick(x=df['Date'],
+                                 open=df['Open'],
+                                 high=df['High'],
+                                 low=df['Low'],
+                                 close=df['Close'],
+                                 name="QQQ",  # Use the symbol name here
+                                 increasing_line_width=0.5, 
+                                 decreasing_line_width=0.5),
+                  row=1, col=1)
+
+    # Volume bar chart in the second row
+    fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], 
+                         name='Volume', 
+                         marker_color='blue', 
+                         opacity=0.3),
+                  row=2, col=1)
+
+    # Adjust x-axis to ensure non-trading hours are proportionate to one candle width
+    fig.update_xaxes(tickformatstops=[
+        dict(dtickrange=[None, 3600000], value="%H:%M\n%b %d")  # Show hour and date on the x-axis
+    ])
+
+    # Remove fixed y-axis range to allow auto-scaling based on data
     fig.update_layout(title='NASDAQ 1h Candlestick Chart with Volume',
                       yaxis_title='Price',
+                      # yaxis=dict(range=[min_price - buffer, max_price + buffer]),  # Optional: Add buffer if needed
                       xaxis_title='Date',
                       xaxis_rangeslider_visible=False,
-                      yaxis2=dict(title='Volume', overlaying='y', side='right', showgrid=False),
                       width=1200, height=800)  # Set the size of the chart
 
     # Save the chart as an image
@@ -109,9 +136,9 @@ def generate_report():
 # Streamlit UI
 st.set_page_config(layout="centered")  # Set layout to centered
 
-# Display the logo
+# Centered logo
 logo_path = "assets/dtb-logo.jpg"
-st.image(logo_path, width=256)
+st.image(logo_path, width=128)
 
 st.title("Daily Trading Briefing")
 
@@ -119,13 +146,35 @@ if st.button("Generate Briefing for Today"):
     generate_report()
 
 st.write("### Available Reports")
-reports = os.listdir('reports')
+
+# Filter reports to show only .md files
+reports = [report for report in os.listdir('reports') if report.endswith('.md')]
 selected_report = st.selectbox("Select a report", reports)
 
-if st.button("Delete Selected Report"):
-    os.remove(f'reports/{selected_report}')
-    st.success(f"Report {selected_report} deleted successfully!")
-
 if selected_report:
+    report_base_name = os.path.splitext(selected_report)[0]
+    image_file = f'reports/{report_base_name}.png'
+    
+    if st.button("Delete Selected Report"):
+        # Check if the report file exists before attempting to delete
+        if os.path.exists(f'reports/{selected_report}'):
+            os.remove(f'reports/{selected_report}')
+            
+            # Delete the corresponding image
+            if os.path.exists(image_file):
+                os.remove(image_file)
+            
+            st.success(f"Report {selected_report} and its associated image deleted successfully!")
+        else:
+            st.error(f"Report {selected_report} not found. It may have already been deleted.")
+
+# Only try to read and display the selected report if it still exists
+if os.path.exists(f'reports/{selected_report}'):
     with open(f'reports/{selected_report}', 'r') as f:
         st.markdown(f.read())
+
+    # Display the corresponding image if it exists
+    if os.path.exists(image_file):
+        st.image(image_file, caption="Candlestick Chart")
+    else:
+        st.write("No associated image found.")
