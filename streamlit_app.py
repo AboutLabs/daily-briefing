@@ -3,39 +3,46 @@ import pandas as pd
 import plotly.graph_objs as go
 import plotly.subplots as sp
 import streamlit as st
-import alpaca_trade_api as tradeapi
+import requests
 import os
 from datetime import datetime, timedelta
 
 # Retrieve the API keys from Streamlit secrets
-alpaca_api_key = st.secrets["ALPACA_API_KEY"]
-alpaca_secret_key = st.secrets["ALPACA_SECRET_KEY"]
+alpha_vantage_api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Function to fetch QQQ data from Alpaca
-def fetch_nasdaq_data(api_key, secret_key):
-    api = tradeapi.REST(api_key, secret_key, base_url='https://paper-api.alpaca.markets')
+# Function to fetch data from Alpha Vantage
+def fetch_stock_data(symbol, api_key):
+    base_url = f"https://www.alphavantage.co/query"
+    params = {
+        "function": "TIME_SERIES_DAILY",
+        "symbol": symbol,
+        "outputsize": "compact",
+        "apikey": api_key
+    }
+    response = requests.get(base_url, params=params)
+    data = response.json()
     
-    # Fetch the data for the QQQ ETF (which tracks Nasdaq) for the last week
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=7)
+    # Parse the JSON data
+    time_series = data.get("Time Series (Daily)", {})
+    if not time_series:
+        st.error("Error fetching data. Please check the stock symbol and try again.")
+        return pd.DataFrame()
     
-    # Format dates correctly for the API
-    start_date_str = start_date.strftime('%Y-%m-%dT%H:%M:%SZ')
-    end_date_str = end_date.strftime('%Y-%m-%dT%H:%M:%SZ')
+    # Convert the data to a DataFrame
+    df = pd.DataFrame.from_dict(time_series, orient='index')
+    df = df.rename(columns={
+        '1. open': 'Open',
+        '2. high': 'High',
+        '3. low': 'Low',
+        '4. close': 'Close',
+        '5. volume': 'Volume'
+    })
+    df.index = pd.to_datetime(df.index)
+    df = df.reset_index().rename(columns={'index': 'Date'})
+    df[['Open', 'High', 'Low', 'Close', 'Volume']] = df[['Open', 'High', 'Low', 'Close', 'Volume']].apply(pd.to_numeric)
     
-    # Get bars data with IEX feed (Free Tier)
-    bars = api.get_bars('QQQ', tradeapi.TimeFrame(15, tradeapi.TimeFrameUnit.Minute), 
-                        start=start_date_str, 
-                        end=end_date_str, 
-                        feed='iex').df
-    
-    # Reset the index and return the required columns
-    bars = bars.reset_index()
-    bars = bars[['timestamp', 'open', 'high', 'low', 'close', 'volume']]
-    bars.columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
-    
-    return bars
+    return df
 
 # Function to create a candlestick chart with volume in a subchart
 def create_candlestick_chart(df, filename):
@@ -51,7 +58,7 @@ def create_candlestick_chart(df, filename):
         high=df['High'],
         low=df['Low'],
         close=df['Close'],
-        name='QQQ'
+        name='Stock'
     ), row=1, col=1)
 
     # Create the volume bar chart in the second row
@@ -65,14 +72,17 @@ def create_candlestick_chart(df, filename):
 
     # Layout configuration
     fig.update_layout(
-        title='QQQ 1h Candlestick Chart with Volume',
-        xaxis_title='Date',
+        title='Daily Candlestick Chart with Volume',
+        xaxis_title='Date',  # Adjust the x-axis title for better spacing
         yaxis_title='Price',
         xaxis_rangeslider_visible=False,
         width=1200, 
         height=800,
         legend_title_text='Legend'
     )
+    
+    # Adjusting the position of the Volume chart's y-axis title to avoid overlap
+    fig.update_yaxes(title_text='Volume', row=2, col=1, side='right', automargin=True)
 
     # Save the chart as an image
     fig.write_image(filename)
@@ -80,12 +90,14 @@ def create_candlestick_chart(df, filename):
     return fig
 
 # Function to generate the report
-def generate_report():
-    st.write("### QQQ Daily Briefing Report")
+def generate_report(stock_symbol):
+    st.write(f"### {stock_symbol} Daily Briefing Report")
     
-    df = fetch_nasdaq_data(alpaca_api_key, alpaca_secret_key)
+    df = fetch_stock_data(stock_symbol, alpha_vantage_api_key)
+    if df.empty:
+        return
     
-    report_file_base = f'reports/nasdaq_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
+    report_file_base = f'reports/{stock_symbol}_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
     image_filename = f"{report_file_base}.png"
     
     fig = create_candlestick_chart(df, image_filename)
@@ -104,7 +116,7 @@ def generate_report():
     st.write(investment_analysis)
     
     report_content = f"""
-    # QQQ Daily Briefing Report
+    # {stock_symbol} Daily Briefing Report
     
     ## Candlestick Chart
     ![Candlestick Chart]({os.path.basename(image_filename)})
@@ -149,13 +161,16 @@ st.image(logo_path, width=128)
 
 st.title("Daily Trading Briefing")
 
+# Stock symbol input
+stock_symbol = st.text_input("Enter Stock Symbol", "QQQ")
+
 if st.button("Generate Briefing for Today"):
-    generate_report()
+    generate_report(stock_symbol)
 
 st.write("### Available Reports")
 
 # Filter reports to show only .md files
-reports = [report for report in os.listdir('reports') if report.endswith('.md')]
+reports = [report for report in os.listdir('reports') if report.startswith(stock_symbol) and report.endswith('.md')]
 selected_report = st.selectbox("Select a report", reports)
 
 if selected_report:

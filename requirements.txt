@@ -4,4 +4,4 @@ plotly
 streamlit
 matplotlib
 kaleido
-alpaca-trade-api
+alpha-vantage
