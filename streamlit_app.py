@@ -1,25 +1,32 @@
-import os
+import openai
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objs as go
-import plotly.subplots as sp
 import streamlit as st
 import alpaca_trade_api as tradeapi
-import openai
+import os
 from datetime import datetime, timedelta
 
-# Helper function to get Streamlit secrets
-def get_secret(key):
-    # Attempt to get the secret from Streamlit secrets
-    if hasattr(st, 'secrets') and key in st.secrets:
-        return st.secrets[key]
-    
-    # If the secret is not found, raise an error
-    raise ValueError(f"Secret '{key}' not found in Streamlit secrets!")
+# Set the page configuration first
+st.set_page_config(layout="wide")  # Set layout to wide
 
-# Retrieve the API keys using the helper function
-alpaca_api_key = get_secret("ALPACA_API_KEY")
-alpaca_secret_key = get_secret("ALPACA_SECRET_KEY")
-openai.api_key = get_secret("OPENAI_API_KEY")
+# Custom CSS to set the width of the main column
+st.markdown(
+    """
+    <style>
+    .main {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Retrieve the API keys from Streamlit secrets
+alpaca_api_key = st.secrets["ALPACA_API_KEY"]
+alpaca_secret_key = st.secrets["ALPACA_SECRET_KEY"]
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Function to fetch NASDAQ data from Alpaca
 def fetch_nasdaq_data(api_key, secret_key):
@@ -46,48 +53,27 @@ def fetch_nasdaq_data(api_key, secret_key):
     
     return bars
 
-# Function to create a candlestick chart with volume in a separate row
+# Function to create a candlestick chart with Plotly Express
 def create_candlestick_chart(df, filename):
-    # Debug: Print min and max values of the Close prices
-    min_price = df['Close'].min()
-    max_price = df['Close'].max()
-    print(f"Min Price: {min_price}")
-    print(f"Max Price: {max_price}")
+    # Create a candlestick chart using Plotly Express
+    fig = go.Figure(data=[go.Candlestick(x=df['Date'],
+                                         open=df['Open'],
+                                         high=df['High'],
+                                         low=df['Low'],
+                                         close=df['Close'])])
 
-    # Create subplots with 2 rows, one for candlestick and one for volume
-    fig = sp.make_subplots(rows=2, cols=1, shared_xaxes=True,
-                           vertical_spacing=0.03, 
-                           row_heights=[0.7, 0.3])  # Adjust row heights
+    # Add volume as a bar chart on the secondary y-axis
+    fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], name='Volume', marker_color='blue', yaxis='y2', opacity=0.3))
 
-    # Candlestick chart in the first row
-    fig.add_trace(go.Candlestick(x=df['Date'],
-                                 open=df['Open'],
-                                 high=df['High'],
-                                 low=df['Low'],
-                                 close=df['Close'],
-                                 name="QQQ",  # Use the symbol name here
-                                 increasing_line_width=0.5, 
-                                 decreasing_line_width=0.5),
-                  row=1, col=1)
-
-    # Volume bar chart in the second row
-    fig.add_trace(go.Bar(x=df['Date'], y=df['Volume'], 
-                         name='Volume', 
-                         marker_color='blue', 
-                         opacity=0.3),
-                  row=2, col=1)
-
-    # Adjust x-axis to ensure non-trading hours are proportionate to one candle width
-    fig.update_xaxes(tickformatstops=[
-        dict(dtickrange=[None, 3600000], value="%H:%M\n%b %d")  # Show hour and date on the x-axis
-    ])
-
-    # Remove fixed y-axis range to allow auto-scaling based on data
-    fig.update_layout(title='NASDAQ 1h Candlestick Chart with Volume',
-                      yaxis_title='Price',
-                      xaxis_title='Date',
-                      xaxis_rangeslider_visible=False,
-                      width=1200, height=800)  # Set the size of the chart
+    # Update layout for better visualization
+    fig.update_layout(
+        title='NASDAQ 1h Candlestick Chart with Volume',
+        yaxis_title='Price',
+        xaxis_title='Date',
+        xaxis_rangeslider_visible=False,
+        yaxis2=dict(title='Volume', overlaying='y', side='right', showgrid=False),
+        width=1200, height=800  # Set the size of the chart
+    )
 
     # Save the chart as an image
     fig.write_image(filename)
@@ -142,9 +128,8 @@ def generate_report():
     st.success("Report generated and saved successfully!")
 
 # Streamlit UI
-st.set_page_config(layout="centered")  # Set layout to centered
 
-# Centered logo
+# Display the logo
 logo_path = "assets/dtb-logo.jpg"
 st.image(logo_path, width=128)
 
