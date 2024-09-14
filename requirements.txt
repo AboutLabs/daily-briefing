@@ -3,5 +3,5 @@ pandas
 plotly
 streamlit
 matplotlib
-kaleido
+vl-convert-python
 alpha-vantage

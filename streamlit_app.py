@@ -1,7 +1,6 @@
 import openai
 import pandas as pd
-import plotly.graph_objs as go
-import plotly.subplots as sp
+import altair as alt
 import streamlit as st
 import requests
 import os
@@ -44,50 +43,35 @@ def fetch_stock_data(symbol, api_key):
     
     return df
 
-# Function to create a candlestick chart with volume in a subchart
-def create_candlestick_chart(df, filename):
-    # Create a subplot with 2 rows, sharing the x-axis
-    fig = sp.make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                           row_heights=[0.7, 0.3], vertical_spacing=0.05,
-                           subplot_titles=("Candlestick Chart", "Volume"))
-
-    # Create the candlestick chart in the first row
-    fig.add_trace(go.Candlestick(
-        x=df['Date'],
-        open=df['Open'],
-        high=df['High'],
-        low=df['Low'],
-        close=df['Close'],
-        name='Stock'
-    ), row=1, col=1)
-
-    # Create the volume bar chart in the second row
-    fig.add_trace(go.Bar(
-        x=df['Date'], 
-        y=df['Volume'], 
-        name='Volume', 
-        marker_color='blue',
-        opacity=0.5
-    ), row=2, col=1)
-
-    # Layout configuration
-    fig.update_layout(
-        title='Daily Candlestick Chart with Volume',
-        xaxis_title='Date',  # Adjust the x-axis title for better spacing
-        yaxis_title='Price',
-        xaxis_rangeslider_visible=False,
-        width=1200, 
-        height=800,
-        legend_title_text='Legend'
+# Function to create an Altair candlestick chart with volume
+def create_altair_candlestick_chart(df, filename):
+    base = alt.Chart(df).encode(
+        x='Date:T'
     )
-    
-    # Adjusting the position of the Volume chart's y-axis title to avoid overlap
-    fig.update_yaxes(title_text='Volume', row=2, col=1, side='right', automargin=True)
+
+    candlestick = base.mark_rule().encode(
+        y='Low:Q',
+        y2='High:Q'
+    ).properties(width=800, height=400).mark_bar().encode(
+        x=alt.X('Date:T', title='Date'),
+        y=alt.Y('Close:Q', title='Price', scale=alt.Scale(domain=[df['Low'].min(), df['High'].max()])),
+        color=alt.condition(
+            "datum.Open <= datum.Close", alt.value("green"), alt.value("red")
+        ),
+        tooltip=['Date:T', 'Open:Q', 'High:Q', 'Low:Q', 'Close:Q', 'Volume:Q']
+    )
+
+    volume = base.mark_bar().encode(
+        y=alt.Y('Volume:Q', title='Volume', scale=alt.Scale(domain=[0, df['Volume'].max() * 1.1])),
+        color=alt.value('blue')
+    ).properties(width=800, height=150)
+
+    chart = alt.vconcat(candlestick, volume).resolve_scale(y='independent')
 
     # Save the chart as an image
-    fig.write_image(filename)
+    chart.save(filename, format='png')
 
-    return fig
+    return chart
 
 # Function to generate the report
 def generate_report(stock_symbol):
@@ -100,8 +84,8 @@ def generate_report(stock_symbol):
     report_file_base = f'reports/{stock_symbol}_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
     image_filename = f"{report_file_base}.png"
     
-    fig = create_candlestick_chart(df, image_filename)
-    st.plotly_chart(fig, use_container_width=True)
+    chart = create_altair_candlestick_chart(df, image_filename)
+    st.altair_chart(chart, use_container_width=True)
     
     st.write("#### News Summary")
     news_summary = "This is a placeholder for news summary. Integrate actual news summary here."
