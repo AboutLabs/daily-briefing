@@ -7,10 +7,14 @@ import alpaca_trade_api as tradeapi
 import os
 from datetime import datetime, timedelta
 
-# Retrieve the API keys from Streamlit secrets
-alpaca_api_key = st.secrets["ALPACA_API_KEY"]
-alpaca_secret_key = st.secrets["ALPACA_SECRET_KEY"]
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# Helper function to get environment variables or Streamlit secrets
+def get_secret(key):
+    return os.getenv(key) or st.secrets.get(key)
+
+# Retrieve the API keys using the helper function
+alpaca_api_key = get_secret("ALPACA_API_KEY")
+alpaca_secret_key = get_secret("ALPACA_SECRET_KEY")
+openai.api_key = get_secret("OPENAI_API_KEY")
 
 # Function to fetch NASDAQ data from Alpaca
 def fetch_nasdaq_data(api_key, secret_key):
