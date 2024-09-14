@@ -1,7 +1,5 @@
 openai
 pandas
-plotly
+altair
 streamlit
-matplotlib
-vl-convert-python
-alpha-vantage
+requests
