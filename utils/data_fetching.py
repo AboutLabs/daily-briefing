@@ -36,9 +36,10 @@ def fetch_stock_data(symbol, api_key, start_date=None, end_date=None):
             status = data.get("status", "Unknown status")
             logger.warning(f"Non-OK status received: {status}")
             if status == "DELAYED":
-                st.warning("Data retrieval is delayed. The data may not be up-to-date.")
+                # st.warning("Data retrieval is delayed. The data may not be up-to-date.")
+                logger.info(f"Non-OK status received: {status}")
             else:
-                st.error(f"Error fetching data: {status}")
+                st.error(f"Data retrieval is delayed. The data may not be up-to-date.")
                 return pd.DataFrame()
 
         if "results" not in data or not data["results"]:

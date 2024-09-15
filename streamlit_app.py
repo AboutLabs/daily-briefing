@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from utils.report_generation import generate_report
 from utils.helper import load_report
+from utils.logging_config import logger
 
 # Set page configuration
 st.set_page_config(page_title="Daily Trading Briefing")
@@ -38,9 +39,7 @@ with col2:
     if st.button("Generate Report"):
         report_file = generate_report(stock_symbol)
         if report_file:
-            st.success(f"Report generated: {report_file}")
-            with open(report_file, 'r') as f:
-                st.markdown(f.read())
+            st.success(f"Report generated: {os.path.basename(report_file)}")
         else:
             st.error("Failed to generate report.")
 
@@ -54,7 +53,7 @@ with col2:
     if selected_report:
         report_base_name = os.path.splitext(selected_report)[0]
         image_file = f'reports/{report_base_name}.png'
-        
+
         if st.button("Delete Selected Report"):
             # Check if the report file exists before attempting to delete
             if os.path.exists(f'reports/{selected_report}'):
@@ -68,15 +67,13 @@ with col2:
             else:
                 st.error(f"Report {selected_report} not found. It may have already been deleted.")
 
+        # Display the corresponding image if it exists
+        if os.path.exists(image_file):
+            st.image(image_file, caption="Candlestick Chart")
+
         # Load and display the selected report
-        report_content, image_file = load_report(selected_report)
+        report_content, _ = load_report(selected_report)
         if report_content:
             st.markdown(report_content)
-
-            # Display the corresponding image if it exists
-            if os.path.exists(image_file):
-                st.image(image_file, caption="Candlestick Chart")
-            else:
-                st.write("No associated image found.")
         else:
             st.error("Failed to load the report.")

@@ -33,7 +33,11 @@ def generate_report(stock_symbol):
         return None
 
     # Create a base filename for the report and chart image
-    report_file_base = f'reports/{stock_symbol}_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
+    report_dir = 'reports'
+    if not os.path.exists(report_dir):
+        os.makedirs(report_dir)  # Create the reports directory if it doesn't exist
+
+    report_file_base = f'{report_dir}/{stock_symbol}_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
     image_filename = f"{report_file_base}.png"
 
     # Generate and save the candlestick chart
@@ -62,11 +66,9 @@ def generate_report(stock_symbol):
         st.error("An unexpected error occurred during analysis. Please try again.")
         return None  # Return None if any other exception occurs
 
-    # Generate the report content
+    # Generate the report content without the image reference
     report_content = f"""
     # {stock_symbol} Daily Briefing Report
-
-    ![Candlestick Chart]({os.path.basename(image_filename)})
 
     ## Analysis
     {stock_analysis}
@@ -77,8 +79,6 @@ def generate_report(stock_symbol):
 
     # Save the report to a markdown file
     report_file = f'{report_file_base}.md'
-    if not os.path.exists('reports'):
-        os.makedirs('reports')  # Create the reports directory if it doesn't exist
     try:
         with open(report_file, 'w') as f:
             f.write(report_content)
@@ -88,5 +88,5 @@ def generate_report(stock_symbol):
         return None  # Return None if report saving fails
 
     logger.info(f"Report generated successfully: {report_file}")
-    st.success(f"Report generated successfully: {os.path.basename(report_file)}")
-    return report_file  # Return the path to the generated report
+    # Return the path to the generated report
+    return report_file

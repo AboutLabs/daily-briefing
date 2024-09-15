@@ -1,4 +1,5 @@
 import os
+from .logging_config import logger
 # Function to load the report
 def load_report(report_filename):
     report_base_name = os.path.splitext(report_filename)[0]
