@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+from utils import load_report
 
 st.set_page_config(page_title="Report Page")
 
@@ -32,13 +33,15 @@ if selected_report:
         else:
             st.error(f"Report {selected_report} not found. It may have already been deleted.")
 
-    # Only try to read and display the selected report if it still exists
-    if os.path.exists(f'reports/{selected_report}'):
-        with open(f'reports/{selected_report}', 'r') as f:
-            st.markdown(f.read())
+    # Load and display the selected report
+    report_content, image_file = load_report(selected_report)
+    if report_content:
+        st.markdown(report_content)
 
         # Display the corresponding image if it exists
         if os.path.exists(image_file):
             st.image(image_file, caption="Candlestick Chart")
         else:
             st.write("No associated image found.")
+    else:
+        st.error("Failed to load the report.")

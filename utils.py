@@ -19,7 +19,17 @@ def fetch_stock_data(symbol, api_key):
         "apikey": api_key
     }
     response = requests.get(base_url, params=params)
+    
+    # Log the response for debugging
+    print(f"API Response Status Code: {response.status_code}")
+    print(f"API Response Content: {response.content}")
+    
     data = response.json()
+    
+    # Check for errors in the response
+    if "Error Message" in data:
+        st.error(f"Error fetching data: {data['Error Message']}")
+        return pd.DataFrame()
     
     # Parse the JSON data
     time_series = data.get("Time Series (Daily)", {})
@@ -91,7 +101,6 @@ def generate_report(stock_symbol):
     report_content = f"""
     # {stock_symbol} Daily Briefing Report
     
-    ## Candlestick Chart
     ![Candlestick Chart]({os.path.basename(image_filename)})
     
     ## News Summary
@@ -108,3 +117,16 @@ def generate_report(stock_symbol):
         os.makedirs('reports')
     with open(report_file, 'w') as f:
         f.write(report_content)
+
+# Function to load the report
+def load_report(report_filename):
+    report_base_name = os.path.splitext(report_filename)[0]
+    image_file = f'reports/{report_base_name}.png'
+    
+    if os.path.exists(f'reports/{report_filename}'):
+        with open(f'reports/{report_filename}', 'r') as f:
+            report_content = f.read()
+        
+        return report_content, image_file
+    else:
+        return None, None
