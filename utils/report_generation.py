@@ -7,6 +7,30 @@ from .charting import create_altair_candlestick_chart
 from .agents import create_investment_crew
 from .logging_config import logger
 
+def escape_markdown(text):
+    """Escape common markdown special characters."""
+    markdown_special_chars = {
+        "*": r"\*",
+        "_": r"\_",
+        "`": r"\`",
+        "[": r"\[",
+        "]": r"\]",
+        "(": r"\(",
+        ")": r"\)",
+        "#": r"\#",
+        "+": r"\+",
+        "-": r"\-",
+        ".": r"\.",
+        "!": r"\!",
+        ">": r"\>",
+        "|": r"\|",
+        "{": r"\{",
+        "}": r"\}",
+    }
+    for char, escaped_char in markdown_special_chars.items():
+        text = text.replace(char, escaped_char)
+    return text
+
 def generate_report(stock_symbol):
     # Display status feedback to the user
     st.info("Creating report...")
@@ -14,7 +38,6 @@ def generate_report(stock_symbol):
     # Access the API keys from Streamlit secrets
     polygon_api_key = st.secrets["POLYGON_API_KEY"]
     openai_api_key = st.secrets["OPENAI_API_KEY"]
-    serper_api_key = st.secrets["SERPER_API_KEY"]
 
     # Fetch stock data using Polygon.io
     try:
@@ -54,9 +77,15 @@ def generate_report(stock_symbol):
         res = investment_crew.kickoff()
         logger.debug(f"Task output: {res}")
 
-        # Assuming res is a dictionary or a similar structure
-        stock_analysis = res.get('analysis', "Analysis placeholder.") if isinstance(res, dict) else str(res)
-        investment_recommendation = res.get('recommendation', "Recommendation placeholder.") if isinstance(res, dict) else "No recommendation available."
+        # Ensure res is a dictionary with analysis key
+        if isinstance(res, dict):
+            stock_analysis = res.get('analysis', "Analysis placeholder.")
+        else:
+            stock_analysis = str(res)
+
+        # Escape all markdown special characters in the analysis text
+        stock_analysis = escape_markdown(stock_analysis)
+        
     except AttributeError as e:
         logger.error(f"AttributeError: {e}. The CrewOutput object may not contain the expected keys.")
         st.error("Error occurred during analysis. Please try again.")
@@ -66,16 +95,13 @@ def generate_report(stock_symbol):
         st.error("An unexpected error occurred during analysis. Please try again.")
         return None  # Return None if any other exception occurs
 
-    # Generate the report content without the image reference
+    # Generate the report content, excluding the recommendation section
     report_content = f"""
-    # {stock_symbol} Daily Briefing Report
+# {stock_symbol} Daily Briefing Report
 
-    ## Analysis
-    {stock_analysis}
-
-    ## Recommendation
-    {investment_recommendation}
-    """
+## Recommendation
+{stock_analysis}
+"""
 
     # Save the report to a markdown file
     report_file = f'{report_file_base}.md'

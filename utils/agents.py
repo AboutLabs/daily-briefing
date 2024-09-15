@@ -1,12 +1,9 @@
-# utils/agents.py
-
 from crewai import Agent, Crew, Task
 from langchain_openai import ChatOpenAI
 from composio_langchain import App, ComposioToolSet
 
 def create_agents(openai_api_key):
     # Initialize the language model with OpenAI API key and model name
-    # llm = ChatOpenAI(model="gpt-4o", openai_api_key=openai_api_key)
     llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=openai_api_key)
 
     # Setup tools using ComposioToolSet
@@ -17,7 +14,7 @@ def create_agents(openai_api_key):
     researcher = Agent(
         role="Investment Researcher",
         goal=(
-            "Use SERP to research the top 2 results based on the input "
+            "Use SERP to research the top 3 results based on the input "
             "given to you and provide a report"
         ),
         backstory=(
@@ -65,16 +62,32 @@ def create_agents(openai_api_key):
 def create_investment_crew(user_input, openai_api_key):
     researcher, analyser, recommend = create_agents(openai_api_key)
     
+    research_task = Task(
+        description=f"Research {user_input}",
+        agent=researcher,
+        expected_output="A detailed report on the research.",
+        tools=None,  # Adjust if specific tools are needed by the researcher
+    )
+    
     analyst_task = Task(
-        description=f"Research and analyze {user_input}",
+        description=f"Analyze the research on {user_input}",
         agent=analyser,
-        expected_output="A comprehensive analysis and investment recommendation.",
+        expected_output="A comprehensive analysis.",
         tools=None,  # Adjust if specific tools are needed by the analyst
+        dependencies=[research_task]  # The analyst task depends on the research task
+    )
+    
+    recommendation_task = Task(
+        description=f"Provide investment recommendation for {user_input}",
+        agent=recommend,
+        expected_output="An investment recommendation with pros and cons.",
+        tools=None,  # Adjust if specific tools are needed by the recommender
+        dependencies=[analyst_task]  # The recommendation task depends on the analyst task
     )
 
     investment_crew = Crew(
         agents=[researcher, analyser, recommend],
-        tasks=[analyst_task],
+        tasks=[research_task, analyst_task, recommendation_task],
         verbose=1,
     )
     
