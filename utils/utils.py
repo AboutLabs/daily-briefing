@@ -118,61 +118,41 @@ def create_altair_candlestick_chart(df, filename):
         st.error(f"Error creating or saving chart: {str(e)}")
         return None
 
-# Function to fetch news related to a stock symbol
-def fetch_news(symbol):
+# Function to generate news summary for a given symbol
+def generate_news_summary(symbol):
     try:
-        logger.info(f"Fetching news for {symbol}")
+        # Use the symbol to fetch relevant news
+        logger.info(f"Fetching news summary for {symbol}")
         res = agent_executor.invoke({
             "input": f"Use SERP to find the latest news for {symbol}, take only the description of the article."
         })
-        return res["output"]
+        
+        # Summarize the fetched news
+        res2 = agent_executor.invoke({"input": res["output"] + " Summarize this"})
+        
+        logger.info(f"Successfully generated news summary for {symbol}")
+        return res2["output"]
+    
     except Exception as e:
-        logger.exception(f"Error fetching news for {symbol}: {str(e)}")
-        return None
+        logger.exception(f"Error generating news summary for {symbol}: {str(e)}")
+        st.error(f"Error generating news summary: {str(e)}")
+        return "No news summary available."
 
-# Function to summarize news content
-def summarize_news(news_content):
-    try:
-        if news_content:
-            logger.info(f"Summarizing news")
-            res = agent_executor.invoke({"input": news_content + " Summarize this"})
-            return res["output"]
-        else:
-            return "No news summary available."
-    except Exception as e:
-        logger.exception(f"Error summarizing news: {str(e)}")
-        return "Error in summarizing news."
-
-# Wrapper function to generate news summary
-def generate_news_summary(symbol):
-    news_content = fetch_news(symbol)
-    summary = summarize_news(news_content)
-    return summary
-
-# Function to generate unique filenames for the report and chart image
-def generate_report_filename(stock_symbol):
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-    report_file_base = f'reports/{stock_symbol}_daily_report_{timestamp}'
+# Function to generate the report
+def generate_report(stock_symbol):
+    df = fetch_stock_data(stock_symbol, alpha_vantage_api_key)
+    if df.empty:
+        return
+    
+    report_file_base = f'reports/{stock_symbol}_daily_report_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}'
     image_filename = f"{report_file_base}.png"
-    report_filename = f'{report_file_base}.md'
     
-    if not os.path.exists('reports'):
-        os.makedirs('reports')
+    create_altair_candlestick_chart(df, image_filename)
     
-    return report_filename, image_filename
-
-# Function to write the report content to a file
-def write_report_to_file(report_filename, report_content):
-    try:
-        with open(report_filename, 'w') as f:
-            f.write(report_content)
-        logger.info(f"Report generated and saved as {report_filename}")
-    except Exception as e:
-        logger.exception(f"Error writing report to file: {str(e)}")
-        st.error(f"Error writing report to file: {str(e)}")
-
-# Function to prepare the report content
-def prepare_report_content(stock_symbol, image_filename, news_summary):
+    # Generate the news summary
+    news_summary = generate_news_summary(stock_symbol)
+    
+    # Placeholder content for the report
     stock_analysis = "This is a placeholder for stock analysis. Integrate actual analysis here."
     investment_analysis = "This is a placeholder for investment analysis. Integrate actual analysis here."
     
@@ -190,24 +170,12 @@ def prepare_report_content(stock_symbol, image_filename, news_summary):
     ## Analytical Report 2
     {stock_analysis}
     """
-    
-    return report_content
-
-# Main function to generate the report
-def generate_report(stock_symbol):
-    df = fetch_stock_data(stock_symbol, alpha_vantage_api_key)
-    if df.empty:
-        return
-    
-    report_filename, image_filename = generate_report_filename(stock_symbol)
-    
-    create_altair_candlestick_chart(df, image_filename)
-    
-    news_summary = generate_news_summary(stock_symbol)
-    
-    report_content = prepare_report_content(stock_symbol, image_filename, news_summary)
-    
-    write_report_to_file(report_filename, report_content)
+    report_file = f'{report_file_base}.md'
+    if not os.path.exists('reports'):
+        os.makedirs('reports')
+    with open(report_file, 'w') as f:
+        f.write(report_content)
+    logger.info(f"Report generated and saved as {report_file}")
 
 # Function to load the report
 def load_report(report_filename):
