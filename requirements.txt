@@ -3,3 +3,8 @@ pandas
 altair
 streamlit
 requests
+composio-langchain
+langchain
+langchain-community
+huggingface_hub
+transformers

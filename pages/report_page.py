@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from utils import load_report
+from utils.utils import load_report
 
 st.set_page_config(page_title="Report Page")
 

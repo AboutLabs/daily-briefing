@@ -1,3 +1,4 @@
 .streamlit
 reports
 __pycache__
+app.log

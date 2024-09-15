@@ -1,5 +1,5 @@
 import streamlit as st
-from utils import generate_report
+from utils.utils import generate_report
 
 st.set_page_config(page_title="Main Page")
 
@@ -10,7 +10,7 @@ st.image(logo_path, width=128)
 st.title("Daily Trading Briefing")
 
 # Stock symbol input
-stock_symbol = st.text_input("Enter Stock Symbol", "QQQ")
+stock_symbol = st.text_input("Enter Stock Symbol", "TSLA")
 
 if st.button("Generate Briefing for Today"):
     generate_report(stock_symbol)
