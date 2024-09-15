@@ -1,10 +1,8 @@
-openai
+streamlit
 pandas
 altair
-streamlit
 requests
+crewai
+langchain-openai
 composio-langchain
-langchain
-langchain-community
-huggingface_hub
-transformers
+vl-convert-python

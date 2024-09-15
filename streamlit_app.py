@@ -1,17 +1,21 @@
+# main.py
+
 import streamlit as st
-from utils.utils import generate_report
+from utils.report_generation import generate_report
 
-st.set_page_config(page_title="Main Page")
+# Safely retrieve secrets from secrets.toml or Streamlit Cloud's secret manager
+alpha_vantage_api_key = st.secrets["ALPHA_VANTAGE_API_KEY"]
 
-# Display the logo
-logo_path = "assets/dtb-logo.jpg"
-st.image(logo_path, width=128)
+# Streamlit interface
+st.title("Investment Analysis Report Generator")
 
-st.title("Daily Trading Briefing")
+stock_symbol = st.text_input("Enter stock symbol:", "AAPL")
 
-# Stock symbol input
-stock_symbol = st.text_input("Enter Stock Symbol", "TSLA")
-
-if st.button("Generate Briefing for Today"):
-    generate_report(stock_symbol)
-    st.success(f"Report for {stock_symbol} generated successfully!")
+if st.button("Generate Report"):
+    report_file = generate_report(stock_symbol)
+    if report_file:
+        st.success(f"Report generated: {report_file}")
+        with open(report_file, 'r') as f:
+            st.markdown(f.read())
+    else:
+        st.error("Failed to generate report.")
