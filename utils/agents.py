@@ -6,7 +6,8 @@ from composio_langchain import App, ComposioToolSet
 
 def create_agents(openai_api_key):
     # Initialize the language model with OpenAI API key and model name
-    llm = ChatOpenAI(model="gpt-4o", openai_api_key=openai_api_key)
+    # llm = ChatOpenAI(model="gpt-4o", openai_api_key=openai_api_key)
+    llm = ChatOpenAI(model="gpt-3.5-turbo", openai_api_key=openai_api_key)
 
     # Setup tools using ComposioToolSet
     composio_toolset = ComposioToolSet()

@@ -1,5 +1,3 @@
-# main.py
-
 import streamlit as st
 import os
 from utils.report_generation import generate_report
