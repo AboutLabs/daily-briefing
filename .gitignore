@@ -2,3 +2,5 @@
 reports
 __pycache__
 app.log
+utils/.DS_Store
+.DS_Store
